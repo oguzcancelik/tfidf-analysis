@@ -1,41 +1,20 @@
-#
-# Import libraries
-#
-import PyPDF2
-import re
-import nltk
 import glob
 import math
+import re
+
+import PyPDF2
 import matplotlib.pyplot as plt
+import nltk
 from matplotlib.backends.backend_pdf import PdfPages
 from wordcloud import WordCloud
 
-# Download stopwords and add new words to the list
-nltk.download('stopwords')
-sw = nltk.corpus.stopwords.words('english')
-sw.append("abstract")
-sw.append("conclusion")
-sw.append("clustercomputœ")
-sw.append("thecomputerjournalvolno")
-sw.append("")
 
-# Initialize variables and dictionaries to store word data
-words = {}
-wordFile = {}
-isInFile = {}
-tfidf = {}
-fileCounter = 0
-
-
-#
-# Read from pdf file, word by word
-#
-def readFromPdf(pdfName):
+def read_from_pdf(pdf_name):
     global words, wordFile, isInFile
-    file = open(pdfName, "rb")
-    pdfReader = PyPDF2.PdfFileReader(file)
-    for i in range(pdfReader.getNumPages()):
-        page = pdfReader.getPage(i).extractText().split()
+    file = open(pdf_name, "rb")
+    pdf_reader = PyPDF2.PdfFileReader(file)
+    for i in range(pdf_reader.getNumPages()):
+        page = pdf_reader.getPage(i).extractText().split()
         for j in page:
             temp = re.sub('[-/{}[()!@#£$.,:*"“;><&1234567890]', '', j).lower()
             if temp not in sw and len(temp) > 1:
@@ -52,12 +31,9 @@ def readFromPdf(pdfName):
     file.close()
 
 
-#
-# Read from text file, word by word
-#
-def readFromTxt(txtName):
+def read_from_txt(txt_name):
     global words, wordFile, isInFile
-    file = open(txtName)
+    file = open(txt_name)
     for i in file.read().split():
         temp = re.sub('[-/{}[()!@#£$.,:*"“;><&1234567890]', '', i).lower()
         if temp not in sw and len(temp) > 1:
@@ -74,70 +50,64 @@ def readFromTxt(txtName):
     file.close()
 
 
-# Get pdf files from the directory and send to readFromPdf function
+nltk.download('stopwords')
+sw = nltk.corpus.stopwords.words('english')
+sw += ["abstract", "conclusion", "clustercomputœ", "thecomputerjournalvolno", ""]
+
+words = {}
+wordFile = {}
+isInFile = {}
+tfidf = {}
+fileCounter = 0
+
 fileList = glob.glob('*.pdf')
 for fileName in fileList:
-    readFromPdf(fileName)
+    read_from_pdf(fileName)
     isInFile = dict.fromkeys(isInFile, 0)
     fileCounter += 1
 
-# Get text files from the directory and send to readFromTxt function
 fileList = glob.glob('*.txt')
 for fileName in fileList:
-    readFromTxt(fileName)
+    read_from_txt(fileName)
     isInFile = dict.fromkeys(isInFile, 0)
     fileCounter += 1
 
-# Calculate tdidf values for each word
 for key, value in words.items():
     tfidf[key] = round(value * math.log(fileCounter / wordFile[key]), 2)
 
-# Sort list descending by their values
 words = sorted(words.items(), key=lambda x: x[1], reverse=True)
 tfidf = sorted(tfidf.items(), key=lambda x: x[1], reverse=True)
 
-# Open csv files to write
 tfFile = open('tf_list.csv', 'w')
 tfidfFile = open('tfidf_list.csv', 'w')
 
 tfData = ""
 tfidfData = ""
 
-# Write inside the csv files
 for i in range(50):
-    tfFile.write(str(words[i][0]) + '; ' + str(words[i][1]) + '\n')
-    tfidfFile.write(str(tfidf[i][0]) + '; ' + str(tfidf[i][1]) + '\n')
+    tfFile.write(str(words[i][0]) + ', ' + str(words[i][1]) + '\n')
+    tfidfFile.write(str(tfidf[i][0]) + ', ' + str(tfidf[i][1]) + '\n')
     tfData += str(words[i][0]) + " "
     tfidfData += str(tfidf[i][0]) + " "
 
-# Close files
 tfFile.close()
 tfidfFile.close()
 
-# Settings for wordcloud
 plt.figure(figsize=(20, 10))
 wordcloud = WordCloud(background_color='white', mode="RGB", width=2000, height=1000).generate(tfData)
 plt.title("TF").set_size(35)
 plt.imshow(wordcloud)
 plt.axis("off")
 
-# Write wordcloud to pdf
 with PdfPages('tf_wordCloud.pdf') as pdf:
     pdf.savefig()
 
-# Settings for wordcloud
 wordcloud = WordCloud(background_color='white', mode="RGB", width=2000, height=1000).generate(tfidfData)
 plt.title("TF-IDF").set_size(35)
 plt.imshow(wordcloud)
 plt.axis("off")
 
-# Write wordcloud to pdf
 with PdfPages('tfidf_wordCloud.pdf') as pdf:
     pdf.savefig()
 
-# Close plot
 plt.close()
-
-#
-# End of the project
-#
